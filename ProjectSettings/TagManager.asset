@@ -8,6 +8,7 @@ TagManager:
   - MazeGeo
   - pared
   - enemy
+  - Esfera
   layers:
   - Default
   - TransparentFX
