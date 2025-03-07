@@ -9,6 +9,7 @@ TagManager:
   - pared
   - enemy
   - Esfera
+  - poder1
   layers:
   - Default
   - TransparentFX

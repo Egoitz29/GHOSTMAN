@@ -1,17 +1,17 @@
-using UnityEngine;
+﻿using UnityEngine;
+using System.Collections;
 
 public class SfereInteractive : MonoBehaviour
-
 {
-    public float velocidadRotacion = 50f; // Velocidad de rotaci�n
+    public float velocidadRotacion = 50f; // Velocidad de rotación
     public float distanciaCambioColor = 3f; // Distancia a la que cambia de color
     public Material materialNormal; // Material base
-    public Material materialCerca; // Material cuando el enemigo est� cerca
+    public Material materialCerca; // Material cuando el enemigo está cerca
     public float tiempoDesaparicion = 0.5f; // Tiempo en que desaparece la esfera
 
     private Renderer rend;
-    private Transform enemy;
     private bool estaDesapareciendo = false;
+    private static Transform enemy; // Referencia global al enemigo
 
     void Start()
     {
@@ -23,24 +23,36 @@ public class SfereInteractive : MonoBehaviour
             rend.material = materialNormal;
         }
 
-        // Buscar al enemigo en la escena
-        GameObject enemyObj = GameObject.FindGameObjectWithTag("enemy");
-        if (enemyObj != null)
+        // Usar referencia global al enemigo para evitar buscar en cada objeto
+        if (enemy == null)
         {
-            enemy = enemyObj.transform;
+            GameObject enemyObj = GameObject.FindGameObjectWithTag("enemy");
+            if (enemyObj != null)
+            {
+                enemy = enemyObj.transform;
+            }
         }
     }
 
-    void Update()
+    void FixedUpdate()
     {
-        // Hacer que la esfera rote constantemente
-        transform.Rotate(Vector3.up * velocidadRotacion * Time.deltaTime);
+        // 🔄 Rotar sobre su propio eje sin que la rotación del padre afecte
+        transform.localRotation *= Quaternion.Euler(0, velocidadRotacion * Time.fixedDeltaTime, 0);
 
-        // Si hay un enemigo, cambiar el material seg�n la distancia
+        // Cambiar material solo si realmente ha cambiado
         if (enemy != null && materialCerca != null && materialNormal != null)
         {
             float distancia = Vector3.Distance(transform.position, enemy.position);
-            rend.material = distancia <= distanciaCambioColor ? materialCerca : materialNormal;
+            bool estaCerca = distancia <= distanciaCambioColor;
+
+            if (estaCerca && rend.material != materialCerca)
+            {
+                rend.material = materialCerca; // Solo cambia si es necesario
+            }
+            else if (!estaCerca && rend.material != materialNormal)
+            {
+                rend.material = materialNormal; // Solo cambia si es necesario
+            }
         }
     }
 
@@ -53,7 +65,7 @@ public class SfereInteractive : MonoBehaviour
         }
     }
 
-    private System.Collections.IEnumerator FadeOut()
+    private IEnumerator FadeOut()
     {
         float tiempo = 0;
         Color colorInicial = rend.material.color;
@@ -67,8 +79,8 @@ public class SfereInteractive : MonoBehaviour
             yield return null;
         }
 
-        Destroy(gameObject);
+        gameObject.SetActive(false); // Desactivar en lugar de destruir para mejor rendimiento
+        estaDesapareciendo = false; // Permitir reutilización
     }
 }
-
 

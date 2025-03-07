@@ -97,5 +97,19 @@ public class MovimientoNavMesh : MonoBehaviour
             // 🔥 Eliminar la esfera "poder1" al contacto
             Destroy(other.gameObject);
         }
+
+        // 🔥 Si el "player" toca un "enemy", mostrar mensaje en consola y cerrar el juego
+        if (other.CompareTag("Player") && gameObject.CompareTag("enemy"))
+        {
+            Debug.Log(" Enhorabuena crack, los fantasmitas han ganado hoy!");
+
+            // 🔹 Detener el juego en el editor de Unity
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            // 🔹 Cerrar el juego si está compilado (EXE, APK, etc.)
+            Application.Quit();
+#endif
+        }
     }
 }
