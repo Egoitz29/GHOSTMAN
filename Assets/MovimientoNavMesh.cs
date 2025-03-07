@@ -15,6 +15,7 @@ public class MovimientoNavMesh : MonoBehaviour
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
+        agent.speed = 5; // Velocidad inicial
 
         // Copiar los waypoints originales a la lista de disponibles
         waypointsDisponibles = new List<Transform>(waypoints);
@@ -83,5 +84,18 @@ public class MovimientoNavMesh : MonoBehaviour
         // 🔹 Cerrar el juego si está compilado (EXE, APK, etc.)
         Application.Quit();
 #endif
+    }
+
+    // 🔹 Detectar colisión con el objeto "poder1", cambiar velocidad y eliminar el objeto
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("poder1") && gameObject.CompareTag("enemy"))
+        {
+            agent.speed = 10;
+            Debug.Log("🚀 ¡Velocidad aumentada a 10!");
+
+            // 🔥 Eliminar la esfera "poder1" al contacto
+            Destroy(other.gameObject);
+        }
     }
 }
