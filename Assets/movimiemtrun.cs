@@ -1,8 +1,6 @@
 using UnityEngine;
 
 public class movimiemtrun : MonoBehaviour
-
-
 {
     public float speed = 5f; // Velocidad de movimiento
     public float turnSpeed = 200f; // Velocidad de giro (para suavizar)
@@ -17,8 +15,11 @@ public class movimiemtrun : MonoBehaviour
     {
         // Movimiento hacia adelante y atrás (W/S o Flechas Arriba/Abajo)
         float moveZ = Input.GetAxis("Vertical");
-        Vector3 movement = transform.forward * moveZ * speed * Time.deltaTime;
-        transform.Translate(movement, Space.World);
+
+        // Obtener la dirección de avance en función de la rotación objetivo
+        Vector3 forwardDirection = targetRotation * Vector3.forward;
+        Vector3 movement = forwardDirection * moveZ * speed * Time.deltaTime;
+        transform.position += movement; // Aplicar movimiento correctamente
 
         // Girar a la izquierda (-90°) o a la derecha (+90°)
         if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
@@ -34,6 +35,7 @@ public class movimiemtrun : MonoBehaviour
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
     }
 }
+
 
 
 
