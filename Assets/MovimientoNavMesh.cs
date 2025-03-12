@@ -11,11 +11,18 @@ public class MovimientoNavMesh : MonoBehaviour
     private NavMeshAgent agent;
     public TMP_Text mensajeFinalizacion; // Mensaje en pantalla
     public float tiempoEsperaAntesDeCerrar = 3f; // Tiempo antes de cerrar el juego
+    public static List<MovimientoNavMesh> enemigos = new List<MovimientoNavMesh>(); // Lista de todos los enemigos
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         agent.speed = 5; // Velocidad inicial
+
+        // Agregar este enemigo a la lista global
+        if (gameObject.CompareTag("enemy"))
+        {
+            enemigos.Add(this);
+        }
 
         // Copiar los waypoints originales a la lista de disponibles
         waypointsDisponibles = new List<Transform>(waypoints);
@@ -86,16 +93,29 @@ public class MovimientoNavMesh : MonoBehaviour
 #endif
     }
 
-    // 🔹 Detectar colisión con el objeto "poder1", cambiar velocidad y eliminar el objeto
+    // 🔹 Detectar colisión con objetos de poder y modificar velocidad
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("poder1") && gameObject.CompareTag("enemy"))
+        if (gameObject.CompareTag("enemy"))
         {
-            agent.speed = 10;
-            Debug.Log("🚀 ¡Velocidad aumentada a 10!");
+            // Poder 1: Aumenta la velocidad del enemigo
+            if (other.CompareTag("poder1"))
+            {
+                agent.speed = 10;
+                Debug.Log("🚀 ¡Velocidad aumentada a 10!");
+                Destroy(other.gameObject); // 🔥 Eliminar la esfera "poder1" al contacto
+            }
+        }
 
-            // 🔥 Eliminar la esfera "poder1" al contacto
-            Destroy(other.gameObject);
+        // 🔥 Si el "player" toca un "poder2", baja la velocidad de TODOS los enemigos
+        if (other.CompareTag("poder2") && gameObject.CompareTag("Player"))
+        {
+            foreach (MovimientoNavMesh enemigo in enemigos)
+            {
+                enemigo.agent.speed = 2; // Reducir la velocidad a 2
+            }
+            Debug.Log("🐢 ¡Velocidad de los enemigos reducida a 2!");
+            Destroy(other.gameObject); // 🔥 Eliminar la esfera "poder2" al contacto
         }
 
         // 🔥 Si el "player" toca un "enemy", mostrar mensaje en consola y cerrar el juego
@@ -113,3 +133,4 @@ public class MovimientoNavMesh : MonoBehaviour
         }
     }
 }
+
