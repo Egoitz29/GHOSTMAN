@@ -11,6 +11,10 @@ TagManager:
   - Esfera
   - poder1
   - poder2
+  - poder3
+  - poder4
+  - poder5
+  - poder6
   layers:
   - Default
   - TransparentFX

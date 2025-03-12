@@ -33,23 +33,31 @@ public class movimiemtrun : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        // ✅ Si el Player toca "poder3", suma 30 segundos
         if (other.CompareTag("poder3"))
         {
-            Debug.Log("🟢 ¡Player tocó poder3!"); // ✅ Confirmar que el trigger se activa
+            Debug.Log("🟢 ¡Player tocó poder3!");
 
             if (temporizador != null)
             {
-                temporizador.AñadirTiempo(30); // ⏳ Sumar 30 segundos al tiempo
+                temporizador.AñadirTiempo(30);
                 Debug.Log("⏳ Se sumaron 30 segundos: Nuevo tiempo = " + temporizador.tiempoPartida);
             }
             else
             {
-                Debug.LogError(" El temporizador es NULL, revisa la asignación en el Inspector.");
+                Debug.LogError("❌ El temporizador es NULL, revisa la asignación en el Inspector.");
             }
 
-            Destroy(other.gameObject); // 🔥 Eliminar el objeto "poder3"
+            Destroy(other.gameObject);
+        }
+
+        // ✅ Si el Player toca "poder5", aumenta su velocidad en +5
+        if (other.CompareTag("poder5"))
+        {
+            speed += 5; // 🔥 Aumentar velocidad en +5
+            Debug.Log("🚀 ¡Velocidad aumentada! Nueva velocidad: " + speed);
+
+            Destroy(other.gameObject); // 🔥 Eliminar el objeto "poder5"
         }
     }
-
-
 }
