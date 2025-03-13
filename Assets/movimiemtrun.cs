@@ -3,32 +3,45 @@
 public class movimiemtrun : MonoBehaviour
 {
     public float speed = 5f; // Velocidad de movimiento
-    public float turnSpeed = 200f; // Velocidad de giro (para suavizar)
-    private Quaternion targetRotation; // Rotación objetivo
-    public Temporizador temporizador; // ✅ Ahora es pública para asignarla desde el Inspector
+    public float turnSpeed = 200f; // Velocidad de giro
+    private int targetRotation = 0; // Ángulo objetivo
+    public Temporizador temporizador; // Referencia al temporizador
 
     void Start()
     {
-        targetRotation = transform.rotation; // Inicializar la rotación actual
+        targetRotation = Mathf.RoundToInt(transform.eulerAngles.y); // Asegurar que inicie con un ángulo correcto
     }
 
     void Update()
     {
-        float moveZ = Input.GetAxis("Vertical");
-        Vector3 forwardDirection = targetRotation * Vector3.forward;
-        Vector3 movement = forwardDirection * moveZ * speed * Time.deltaTime;
-        transform.position += movement;
+        // 🔴 No permite moverse hasta que la rotación esté en un ángulo exacto
+        if (Quaternion.Angle(transform.rotation, Quaternion.Euler(0, targetRotation, 0)) < 1f)
+        {
+            // Movimiento solo si la rotación es exacta
+            float moveZ = Input.GetAxis("Vertical");
+            Vector3 forwardDirection = Quaternion.Euler(0, targetRotation, 0) * Vector3.forward;
+            transform.position += forwardDirection * moveZ * speed * Time.deltaTime;
+        }
 
+        // Rotar a la izquierda
         if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
         {
-            targetRotation *= Quaternion.Euler(0, -90, 0);
+            targetRotation -= 90;
+            if (targetRotation < 0) targetRotation += 360; // Evita valores negativos
         }
+        // Rotar a la derecha
         else if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
         {
-            targetRotation *= Quaternion.Euler(0, 90, 0);
+            targetRotation += 90;
+            if (targetRotation >= 360) targetRotation -= 360; // Evita valores mayores a 360
         }
 
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
+        // Aplicar rotación suavemente con RotateTowards
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation,
+            Quaternion.Euler(0, targetRotation, 0),
+            turnSpeed * Time.deltaTime
+        );
     }
 
     private void OnTriggerEnter(Collider other)

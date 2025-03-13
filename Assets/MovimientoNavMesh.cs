@@ -12,17 +12,33 @@ public class MovimientoNavMesh : MonoBehaviour
     public TMP_Text mensajeFinalizacion; // Mensaje en pantalla
     public float tiempoEsperaAntesDeCerrar = 3f; // Tiempo antes de cerrar el juego
     public static List<MovimientoNavMesh> enemigos = new List<MovimientoNavMesh>(); // Lista de todos los enemigos
+    public GameObject player; // Referencia al jugador para congelarlo cuando termine el juego
+
+    public float velocidadGiro = 500f; // 🟢 Nueva variable para ajustar la velocidad del giro
+
+    private int targetRotation = 0; // Rotación objetivo (0°, 90°, 180°, 270°)
+    private bool isRotating = false; // Indica si el enemigo está girando
+    private Transform currentWaypoint; // Waypoint actual al que se dirige
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        agent.speed = 5; // Velocidad inicial
+        agent.speed = 5;
 
-        // Agregar este enemigo a la lista global
-        if (gameObject.CompareTag("enemy"))
-        {
-            enemigos.Add(this);
-        }
+        // 🟢 Desactivar temporalmente el NavMeshAgent para evitar ajustes de altura
+        agent.enabled = false;
+
+        // 🟢 Ajustar la posición deseada
+        Vector3 posicionDeseada = transform.position;
+        posicionDeseada.y = 1; // 🔥 Fijar la altura
+        transform.position = posicionDeseada;
+
+        // 🟢 Reactivar el NavMeshAgent después de fijar la posición
+        agent.enabled = true;
+
+        // Evitar que el NavMeshAgent rote automáticamente
+        agent.updateRotation = false;
+        agent.updateUpAxis = false;
 
         // Copiar los waypoints originales a la lista de disponibles
         waypointsDisponibles = new List<Transform>(waypoints);
@@ -33,104 +49,177 @@ public class MovimientoNavMesh : MonoBehaviour
         }
         else
         {
-            StartCoroutine(PartidaFinalizada()); // Si no hay waypoints desde el inicio, cerrar juego
+            StartCoroutine(PartidaFinalizada());
         }
     }
 
+
+
     void Update()
     {
-        // 🔹 Si ya no quedan waypoints en la lista, iniciar el cierre del juego
+        // 🔴 Si está girando, solo gira y no avanza
+        if (isRotating)
+        {
+            RotarHaciaObjetivo();
+            return;
+        }
+
+        // Si ya no quedan waypoints, finalizar la partida
         if (waypointsDisponibles.Count == 0)
         {
             StartCoroutine(PartidaFinalizada());
             return;
         }
 
-        // Si el agente llegó al destino y aún quedan waypoints, elegir uno nuevo
+        // Si el enemigo llega al destino, buscar otro
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
         {
             MoverAlSiguientePunto();
         }
     }
 
+    void LateUpdate()
+    {
+        Vector3 posicionCorrigida = transform.position;
+        posicionCorrigida.y = 1; // 🔥 Asegurar que la altura sea 1
+        transform.position = posicionCorrigida;
+    }
+
+
+    // 🔹 Buscar el siguiente waypoint y ajustar la dirección
     void MoverAlSiguientePunto()
     {
-        // 🔹 Eliminar todos los waypoints que sean null antes de elegir uno
-        waypointsDisponibles.RemoveAll(w => w == null);
-
         if (waypointsDisponibles.Count == 0)
         {
             StartCoroutine(PartidaFinalizada());
             return;
         }
 
-        int indiceAleatorio = Random.Range(0, waypointsDisponibles.Count);
-        Transform waypointSeleccionado = waypointsDisponibles[indiceAleatorio];
+        currentWaypoint = waypointsDisponibles[Random.Range(0, waypointsDisponibles.Count)];
+        waypointsDisponibles.Remove(currentWaypoint);
 
-        waypointsDisponibles.RemoveAt(indiceAleatorio);
-        agent.destination = waypointSeleccionado.position;
+        // Calcular dirección hacia el nuevo waypoint
+        Vector3 direccion = (currentWaypoint.position - transform.position).normalized;
+
+        // Definir rotación exacta en pasos de 90°
+        int nuevaRotacion = targetRotation;
+
+        if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
+        {
+            nuevaRotacion = direccion.x > 0 ? 90 : 270;
+        }
+        else
+        {
+            nuevaRotacion = direccion.z > 0 ? 0 : 180;
+        }
+
+        // Si hay un cambio de dirección, girar primero
+        if (nuevaRotacion != targetRotation)
+        {
+            targetRotation = nuevaRotacion;
+            isRotating = true;
+        }
+        else
+        {
+            agent.SetDestination(currentWaypoint.position);
+        }
+    }
+
+    // 🔹 Girar más rápido hacia la rotación objetivo
+    void RotarHaciaObjetivo()
+    {
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(0, targetRotation, 0), velocidadGiro * Time.deltaTime);
+
+        // Si ya giró completamente, permitir moverse
+        if (Quaternion.Angle(transform.rotation, Quaternion.Euler(0, targetRotation, 0)) < 1f)
+        {
+            isRotating = false;
+            agent.SetDestination(currentWaypoint.position); // 🟢 Ahora sí se mueve después de girar
+        }
     }
 
     IEnumerator PartidaFinalizada()
     {
-        Debug.Log("✅ Todos los waypoints han sido visitados o eliminados. Cerrando juego...");
+        Debug.Log("✅ Todos los waypoints han sido visitados. Se detiene el juego.");
 
+        // 🛑 Mostrar mensaje en pantalla
         if (mensajeFinalizacion != null)
         {
-            mensajeFinalizacion.text = "Has perdido, pequeño enano"; // 🔹 Mensaje antes de cerrar el juego
+            mensajeFinalizacion.text = "¡Partida terminada! No quedan más objetivos.";
         }
 
-        agent.isStopped = true; // Detener el movimiento
+        // 🛑 Detener a todos los enemigos
+        foreach (MovimientoNavMesh enemigo in enemigos)
+        {
+            if (enemigo.agent != null)
+            {
+                enemigo.agent.isStopped = true;
+            }
+        }
 
-        yield return new WaitForSeconds(tiempoEsperaAntesDeCerrar); // ⏳ Esperar antes de cerrar el juego
+        // 🛑 Detener al jugador si tiene un `NavMeshAgent`
+        if (player != null)
+        {
+            NavMeshAgent playerAgent = player.GetComponent<NavMeshAgent>();
+            if (playerAgent != null)
+            {
+                playerAgent.isStopped = true;
+            }
 
-        // 🔹 Detener el juego en el editor de Unity
+            // 🛑 Si el jugador usa Rigidbody, congelar su movimiento
+            Rigidbody rb = player.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.Sleep(); // ✅ Método recomendado en Unity 2023 en lugar de rb.velocity = Vector3.zero;
+            }
+        }
+
+        // ⏳ Esperar unos segundos antes de cerrar el juego
+        yield return new WaitForSeconds(tiempoEsperaAntesDeCerrar);
+
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
-        // 🔹 Cerrar el juego si está compilado (EXE, APK, etc.)
-        Application.Quit();
+    Application.Quit();
 #endif
     }
 
-    // 🔹 Detectar colisión con objetos de poder y modificar velocidad
+
+    // 🔹 Detectar colisión con poderes y modificar velocidad
     private void OnTriggerEnter(Collider other)
     {
         if (gameObject.CompareTag("enemy"))
         {
-            // Poder 1: Aumenta la velocidad del enemigo
+            // 🔥 Si el enemigo toca "poder1", aumenta su velocidad
             if (other.CompareTag("poder1"))
             {
                 agent.speed = 10;
                 Debug.Log("🚀 ¡Velocidad aumentada a 10!");
-                Destroy(other.gameObject); // 🔥 Eliminar la esfera "poder1" al contacto
+                Destroy(other.gameObject);
             }
         }
 
-        // 🔥 Si el "player" toca un "poder2", baja la velocidad de TODOS los enemigos
+        // 🔥 Si el "player" toca "poder2", baja la velocidad de TODOS los enemigos
         if (other.CompareTag("poder2") && gameObject.CompareTag("Player"))
         {
             foreach (MovimientoNavMesh enemigo in enemigos)
             {
-                enemigo.agent.speed = 2; // Reducir la velocidad a 2
+                enemigo.agent.speed = 2;
             }
             Debug.Log("🐢 ¡Velocidad de los enemigos reducida a 2!");
-            Destroy(other.gameObject); // 🔥 Eliminar la esfera "poder2" al contacto
+            Destroy(other.gameObject);
         }
 
-        // 🔥 Si el "player" toca un "enemy", mostrar mensaje en consola y cerrar el juego
+        // 🔥 Si el "player" toca un "enemy", mostrar mensaje y cerrar el juego
         if (other.CompareTag("Player") && gameObject.CompareTag("enemy"))
         {
-            Debug.Log(" Enhorabuena crack, los fantasmitas han ganado hoy!");
+            Debug.Log("Enhorabuena crack, los fantasmitas han ganado hoy!");
 
-            // 🔹 Detener el juego en el editor de Unity
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #else
-            // 🔹 Cerrar el juego si está compilado (EXE, APK, etc.)
             Application.Quit();
 #endif
         }
     }
 }
-
