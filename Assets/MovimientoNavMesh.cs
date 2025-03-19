@@ -13,6 +13,7 @@ public class MovimientoNavMesh : MonoBehaviour
     public float tiempoEsperaAntesDeCerrar = 3f; // Tiempo antes de cerrar el juego
     public static List<MovimientoNavMesh> enemigos = new List<MovimientoNavMesh>(); // Lista de todos los enemigos
     public GameObject player; // Referencia al jugador para congelarlo cuando termine el juego
+    public TMP_Text mensajeCanvas; // 🔹 Referencia al texto en el Canvas
 
     public float velocidadGiro = 500f; // 🟢 Nueva variable para ajustar la velocidad del giro
 
@@ -20,27 +21,22 @@ public class MovimientoNavMesh : MonoBehaviour
     private bool isRotating = false; // Indica si el enemigo está girando
     private Transform currentWaypoint; // Waypoint actual al que se dirige
 
+    private bool persiguiendoPlayer = false; // 🔹 Indica si está persiguiendo al player
+    private float tiempoInicioPersecucion; // 🔹 Guarda el tiempo cuando empezó la persecución
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        agent.speed = 5;
 
-        // 🟢 Desactivar temporalmente el NavMeshAgent para evitar ajustes de altura
         agent.enabled = false;
-
-        // 🟢 Ajustar la posición deseada
         Vector3 posicionDeseada = transform.position;
-        posicionDeseada.y = 1; // 🔥 Fijar la altura
+        posicionDeseada.y = 1;
         transform.position = posicionDeseada;
-
-        // 🟢 Reactivar el NavMeshAgent después de fijar la posición
         agent.enabled = true;
 
-        // Evitar que el NavMeshAgent rote automáticamente
         agent.updateRotation = false;
         agent.updateUpAxis = false;
 
-        // Copiar los waypoints originales a la lista de disponibles
         waypointsDisponibles = new List<Transform>(waypoints);
 
         if (waypointsDisponibles.Count > 0)
@@ -53,40 +49,103 @@ public class MovimientoNavMesh : MonoBehaviour
         }
     }
 
-
-
     void Update()
     {
-        // 🔴 Si está girando, solo gira y no avanza
-        if (isRotating)
         {
-            RotarHaciaObjetivo();
-            return;
+            if (isRotating)
+            {
+                RotarHaciaObjetivo();
+                return;
+            }
+
+            if (persiguiendoPlayer)
+            {
+                // 🔄 Rotar gradualmente hacia el Player
+                Vector3 direccion = (player.transform.position - transform.position).normalized;
+                Quaternion rotacionObjetivo = Quaternion.LookRotation(direccion);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, rotacionObjetivo, velocidadGiro * Time.deltaTime);
+
+                // 🔥 Si pasan 10 segundos sin alcanzar al player, volver a la ruta normal
+                if (Time.time - tiempoInicioPersecucion >= 10f)
+                {
+                    persiguiendoPlayer = false;
+                    Debug.Log("⏳ Se agotó el tiempo de persecución. Volviendo a waypoints.");
+                    MoverAlSiguientePunto();
+                }
+                else
+                {
+                    agent.SetDestination(player.transform.position);
+                }
+                return;
+            }
+
+            if (waypointsDisponibles.Count == 0)
+            {
+                StartCoroutine(PartidaFinalizada());
+                return;
+            }
+
+            if (!agent.pathPending && agent.remainingDistance < 0.5f)
+            {
+                MoverAlSiguientePunto();
+            }
         }
 
-        // Si ya no quedan waypoints, finalizar la partida
-        if (waypointsDisponibles.Count == 0)
+        void MoverAlSiguientePunto()
         {
-            StartCoroutine(PartidaFinalizada());
-            return;
+            if (waypointsDisponibles.Count == 0)
+            {
+                StartCoroutine(PartidaFinalizada());
+                return;
+            }
+
+            currentWaypoint = waypointsDisponibles[Random.Range(0, waypointsDisponibles.Count)];
+            waypointsDisponibles.Remove(currentWaypoint);
+
+            Vector3 direccion = (currentWaypoint.position - transform.position).normalized;
+            int nuevaRotacion = targetRotation;
+
+            if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
+            {
+                nuevaRotacion = direccion.x > 0 ? 90 : 270;
+            }
+            else
+            {
+                nuevaRotacion = direccion.z > 0 ? 0 : 180;
+            }
+
+            // 🔥 Si está girando, respetar la rotación
+            if (nuevaRotacion != targetRotation)
+            {
+                targetRotation = nuevaRotacion;
+                isRotating = true;
+            }
+            else
+            {
+                agent.SetDestination(currentWaypoint.position);
+            }
         }
 
-        // Si el enemigo llega al destino, buscar otro
-        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+        void RotarHaciaObjetivo()
         {
-            MoverAlSiguientePunto();
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(0, targetRotation, 0), velocidadGiro * Time.deltaTime);
+
+            if (Quaternion.Angle(transform.rotation, Quaternion.Euler(0, targetRotation, 0)) < 1f)
+            {
+                isRotating = false;
+                agent.SetDestination(currentWaypoint.position);
+            }
         }
+
     }
 
     void LateUpdate()
     {
         Vector3 posicionCorrigida = transform.position;
-        posicionCorrigida.y = 1; // 🔥 Asegurar que la altura sea 1
+        posicionCorrigida.y = 1;
         transform.position = posicionCorrigida;
     }
 
-
-    // 🔹 Buscar el siguiente waypoint y ajustar la dirección
     void MoverAlSiguientePunto()
     {
         if (waypointsDisponibles.Count == 0)
@@ -98,10 +157,7 @@ public class MovimientoNavMesh : MonoBehaviour
         currentWaypoint = waypointsDisponibles[Random.Range(0, waypointsDisponibles.Count)];
         waypointsDisponibles.Remove(currentWaypoint);
 
-        // Calcular dirección hacia el nuevo waypoint
         Vector3 direccion = (currentWaypoint.position - transform.position).normalized;
-
-        // Definir rotación exacta en pasos de 90°
         int nuevaRotacion = targetRotation;
 
         if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
@@ -113,7 +169,6 @@ public class MovimientoNavMesh : MonoBehaviour
             nuevaRotacion = direccion.z > 0 ? 0 : 180;
         }
 
-        // Si hay un cambio de dirección, girar primero
         if (nuevaRotacion != targetRotation)
         {
             targetRotation = nuevaRotacion;
@@ -125,16 +180,14 @@ public class MovimientoNavMesh : MonoBehaviour
         }
     }
 
-    // 🔹 Girar más rápido hacia la rotación objetivo
     void RotarHaciaObjetivo()
     {
         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(0, targetRotation, 0), velocidadGiro * Time.deltaTime);
 
-        // Si ya giró completamente, permitir moverse
         if (Quaternion.Angle(transform.rotation, Quaternion.Euler(0, targetRotation, 0)) < 1f)
         {
             isRotating = false;
-            agent.SetDestination(currentWaypoint.position); // 🟢 Ahora sí se mueve después de girar
+            agent.SetDestination(currentWaypoint.position);
         }
     }
 
@@ -142,13 +195,11 @@ public class MovimientoNavMesh : MonoBehaviour
     {
         Debug.Log("✅ Todos los waypoints han sido visitados. Se detiene el juego.");
 
-        // 🛑 Mostrar mensaje en pantalla
         if (mensajeFinalizacion != null)
         {
             mensajeFinalizacion.text = "¡Partida terminada! No quedan más objetivos.";
         }
 
-        // 🛑 Detener a todos los enemigos
         foreach (MovimientoNavMesh enemigo in enemigos)
         {
             if (enemigo.agent != null)
@@ -157,7 +208,6 @@ public class MovimientoNavMesh : MonoBehaviour
             }
         }
 
-        // 🛑 Detener al jugador si tiene un `NavMeshAgent`
         if (player != null)
         {
             NavMeshAgent playerAgent = player.GetComponent<NavMeshAgent>();
@@ -166,31 +216,26 @@ public class MovimientoNavMesh : MonoBehaviour
                 playerAgent.isStopped = true;
             }
 
-            // 🛑 Si el jugador usa Rigidbody, congelar su movimiento
             Rigidbody rb = player.GetComponent<Rigidbody>();
             if (rb != null)
             {
-                rb.Sleep(); // ✅ Método recomendado en Unity 2023 en lugar de rb.velocity = Vector3.zero;
+                rb.Sleep();
             }
         }
 
-        // ⏳ Esperar unos segundos antes de cerrar el juego
         yield return new WaitForSeconds(tiempoEsperaAntesDeCerrar);
 
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
-    Application.Quit();
+        Application.Quit();
 #endif
     }
 
-
-    // 🔹 Detectar colisión con poderes y modificar velocidad
     private void OnTriggerEnter(Collider other)
     {
         if (gameObject.CompareTag("enemy"))
         {
-            // 🔥 Si el enemigo toca "poder1", aumenta su velocidad
             if (other.CompareTag("poder1"))
             {
                 agent.speed = 10;
@@ -199,7 +244,6 @@ public class MovimientoNavMesh : MonoBehaviour
             }
         }
 
-        // 🔥 Si el "player" toca "poder2", baja la velocidad de TODOS los enemigos
         if (other.CompareTag("poder2") && gameObject.CompareTag("Player"))
         {
             foreach (MovimientoNavMesh enemigo in enemigos)
@@ -210,7 +254,6 @@ public class MovimientoNavMesh : MonoBehaviour
             Destroy(other.gameObject);
         }
 
-        // 🔥 Si el "player" toca un "enemy", mostrar mensaje y cerrar el juego
         if (other.CompareTag("Player") && gameObject.CompareTag("enemy"))
         {
             Debug.Log("Enhorabuena crack, los fantasmitas han ganado hoy!");
@@ -218,8 +261,58 @@ public class MovimientoNavMesh : MonoBehaviour
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #else
-            Application.Quit();
+        Application.Quit();
 #endif
         }
+
+        // 🔥 🔹 Si el enemigo toca "matar", prioriza al player y destruye el objeto
+        if (other.CompareTag("matar"))
+        {
+            Debug.Log("🔴 El enemigo ha tocado 'matar'. Ahora prioriza al player.");
+            persiguiendoPlayer = true;
+            tiempoInicioPersecucion = Time.time;
+            agent.SetDestination(player.transform.position);
+
+            // 🛑 Asegurar que sigue girando y moviéndose después de tocar "matar"
+            isRotating = false; // 🔹 Evitar que se quede en un estado de rotación bloqueado
+            agent.isStopped = false; // 🔥 Reactivar movimiento
+
+            // 🔄 Forzar el movimiento si se detiene
+            if (!agent.hasPath)
+            {
+                MoverAlSiguientePunto();
+            }
+
+            Destroy(other.gameObject); // 🔥 Elimina el objeto con el tag "matar"
+        }
+
+        if (persiguiendoPlayer && other.CompareTag("Player"))
+        {
+            Debug.Log("😂 JAJAJAJA HOY GANA PAC-MAN");
+
+            // Mostrar el mensaje en pantalla si existe el texto en el Canvas
+            if (mensajeCanvas != null)
+            {
+                mensajeCanvas.text = "JAJAJAJA HOY GANA PAC-MAN";
+                mensajeCanvas.gameObject.SetActive(true); // 🔥 Asegurarse de que el texto se muestre
+            }
+
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+        }
+
+        // 🔄 🔥 Si el enemigo toca cualquier otro objeto y se queda bloqueado, restaurar su movimiento
+        if (!persiguiendoPlayer && agent.isStopped)
+        {
+            Debug.Log("⚠️ Enemigo bloqueado tras colisión, restaurando movimiento.");
+            agent.isStopped = false;
+            MoverAlSiguientePunto();
+        }
     }
+
+
+
 }
