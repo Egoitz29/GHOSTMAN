@@ -1,97 +1,40 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
-public class Teletransportador : MonoBehaviour
+public class TeletransportadorDoble : MonoBehaviour
 {
-    public Transform destino;
-    public float cooldownTime = 5f; // ⏳ Tiempo de espera antes de volver a teletransportar
-    private bool enCooldown = false;
+    public TeletransportadorDoble otroTeletransportador; // Referencia al otro teletransportador
+    private HashSet<GameObject> objetosEnTeletransporte = new HashSet<GameObject>(); // Evitar bucle
 
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log($"Objeto detectado: {other.gameObject.name}, Tag: {other.tag}"); // 👀 Verifica qué detecta
-
-        if ((other.CompareTag("Player") || other.CompareTag("enemy")) && !enCooldown)
+        if ((other.CompareTag("Player") || other.CompareTag("Enemy")) && !objetosEnTeletransporte.Contains(other.gameObject))
         {
-            Debug.Log($"Teletransportando a: {other.gameObject.name}"); // 📌 Confirmación de teletransporte
             StartCoroutine(Teletransportar(other.gameObject));
         }
     }
 
     private IEnumerator Teletransportar(GameObject objeto)
     {
-        enCooldown = true;
+        objetosEnTeletransporte.Add(objeto); // Marcar objeto como en teletransporte
 
-        // 🔴 Desactivar el collider del objeto para evitar doble teletransporte
+        // Obtener el collider del objeto y desactivarlo temporalmente
         Collider objCollider = objeto.GetComponent<Collider>();
         if (objCollider != null) objCollider.enabled = false;
 
-        // Desactivar el teletransportador temporalmente
-        Collider col = GetComponent<Collider>();
-        if (col != null) col.enabled = false;
+        // Guardar la altura actual y teletransportar
+        Vector3 nuevaPosicion = otroTeletransportador.transform.position;
+        nuevaPosicion.y = objeto.transform.position.y;
 
-        // Verificar si el objeto tiene NavMeshAgent y detenerlo
-        UnityEngine.AI.NavMeshAgent agente = objeto.GetComponent<UnityEngine.AI.NavMeshAgent>();
-        if (agente != null)
-        {
-            agente.isStopped = true;  // ✋ Detiene el NavMeshAgent antes del teletransporte
-            agente.enabled = false;   // 🔧 Desactiva el NavMeshAgent
-        }
+        yield return new WaitForSeconds(0.1f); // Pequeña espera antes del teletransporte
+        objeto.transform.position = nuevaPosicion;
 
-        // Verificar si tiene un Rigidbody y desactivar temporalmente la física
-        Rigidbody rb = objeto.GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.isKinematic = true;   // 🛑 Desactiva la física para evitar movimientos raros
-            rb.linearVelocity = Vector3.zero; // ✨ Limpia cualquier movimiento residual
-        }
+        yield return new WaitForSeconds(0.3f); // Espera para evitar activación inmediata
+        objetosEnTeletransporte.Remove(objeto); // Permitir futuros teletransportes
 
-        // Si el objeto es un jugador con CharacterController, desactivarlo
-        CharacterController cc = objeto.GetComponent<CharacterController>();
-        if (cc != null)
-        {
-            cc.enabled = false;
-        }
-
-        // Teletransportar al destino
-        objeto.transform.position = destino.position + Vector3.up * 1.5f;
-
-        yield return new WaitForSeconds(0.5f); // Esperar para actualizar la posición correctamente
-
-        // Reactivar NavMeshAgent si lo tenía
-        if (agente != null)
-        {
-            agente.enabled = true;
-            agente.isStopped = false;
-            agente.SetDestination(destino.position); // 💡 Recalcular camino
-        }
-
-        // Reactivar CharacterController si lo tenía
-        if (cc != null)
-        {
-            yield return new WaitForSeconds(0.2f); // Esperar un poco más
-            cc.enabled = true;
-        }
-
-        // Reactivar Rigidbody si lo tenía
-        if (rb != null)
-        {
-            yield return new WaitForSeconds(0.2f);
-            rb.isKinematic = false; // 🔄 Reactivar la física
-        }
-
-        // Reactivar el collider del objeto después de 1 segundo para evitar bucles
-        yield return new WaitForSeconds(1f);
+        // Reactivar el collider del objeto después de un tiempo
+        yield return new WaitForSeconds(0.2f);
         if (objCollider != null) objCollider.enabled = true;
-
-        // ⏳ Esperar antes de reactivar el teletransportador (5 segundos)
-        yield return new WaitForSeconds(cooldownTime - 1f);
-
-        if (col != null) col.enabled = true; // ✅ Reactivar el teletransportador
-
-        enCooldown = false;
     }
 }
-
-
-

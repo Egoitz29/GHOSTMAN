@@ -14,6 +14,8 @@ public class MovimientoNavMesh : MonoBehaviour
     public static List<MovimientoNavMesh> enemigos = new List<MovimientoNavMesh>(); // Lista de todos los enemigos
     public GameObject player; // Referencia al jugador para congelarlo cuando termine el juego
     public TMP_Text mensajeCanvas; // 🔹 Referencia al texto en el Canvas
+   
+
 
     public float velocidadGiro = 500f; // 🟢 Nueva variable para ajustar la velocidad del giro
 
@@ -90,43 +92,10 @@ public class MovimientoNavMesh : MonoBehaviour
                 MoverAlSiguientePunto();
             }
         }
+    
 
-        void MoverAlSiguientePunto()
-        {
-            if (waypointsDisponibles.Count == 0)
-            {
-                StartCoroutine(PartidaFinalizada());
-                return;
-            }
 
-            currentWaypoint = waypointsDisponibles[Random.Range(0, waypointsDisponibles.Count)];
-            waypointsDisponibles.Remove(currentWaypoint);
-
-            Vector3 direccion = (currentWaypoint.position - transform.position).normalized;
-            int nuevaRotacion = targetRotation;
-
-            if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
-            {
-                nuevaRotacion = direccion.x > 0 ? 90 : 270;
-            }
-            else
-            {
-                nuevaRotacion = direccion.z > 0 ? 0 : 180;
-            }
-
-            // 🔥 Si está girando, respetar la rotación
-            if (nuevaRotacion != targetRotation)
-            {
-                targetRotation = nuevaRotacion;
-                isRotating = true;
-            }
-            else
-            {
-                agent.SetDestination(currentWaypoint.position);
-            }
-        }
-
-        void RotarHaciaObjetivo()
+    void RotarHaciaObjetivo()
         {
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(0, targetRotation, 0), velocidadGiro * Time.deltaTime);
 
@@ -146,7 +115,7 @@ public class MovimientoNavMesh : MonoBehaviour
         transform.position = posicionCorrigida;
     }
 
-    void MoverAlSiguientePunto()
+     public void MoverAlSiguientePunto()
     {
         if (waypointsDisponibles.Count == 0)
         {
@@ -253,38 +222,28 @@ public class MovimientoNavMesh : MonoBehaviour
             Debug.Log("🐢 ¡Velocidad de los enemigos reducida a 2!");
             Destroy(other.gameObject);
         }
-
         if (other.CompareTag("Player") && gameObject.CompareTag("enemy"))
         {
-            Debug.Log("Enhorabuena crack, los fantasmitas han ganado hoy!");
+            Debug.Log("Enhorabuena crack, los fantasmas han ganado hoy!");
 
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
-        }
-
-        // 🔥 🔹 Si el enemigo toca "matar", prioriza al player y destruye el objeto
-        if (other.CompareTag("matar"))
-        {
-            Debug.Log("🔴 El enemigo ha tocado 'matar'. Ahora prioriza al player.");
-            persiguiendoPlayer = true;
-            tiempoInicioPersecucion = Time.time;
-            agent.SetDestination(player.transform.position);
-
-            // 🛑 Asegurar que sigue girando y moviéndose después de tocar "matar"
-            isRotating = false; // 🔹 Evitar que se quede en un estado de rotación bloqueado
-            agent.isStopped = false; // 🔥 Reactivar movimiento
-
-            // 🔄 Forzar el movimiento si se detiene
-            if (!agent.hasPath)
+            // Mostrar mensaje en pantalla antes de cerrar el juego
+            if (mensajeCanvas != null)
             {
-                MoverAlSiguientePunto();
+                mensajeCanvas.text = "¡Enhorabuena crack, los fantasmas han ganado!";
+                mensajeCanvas.gameObject.SetActive(true); // Asegurar que el texto se muestre
+                mensajeCanvas.ForceMeshUpdate();
             }
 
-            Destroy(other.gameObject); // 🔥 Elimina el objeto con el tag "matar"
+            Time.timeScale = 0;
+
+            // Esperar 3 segundos antes de cerrar el juego
+            StartCoroutine(ReanudarTiempoYCerrar());
+        
+
+
         }
+
+       
 
         if (persiguiendoPlayer && other.CompareTag("Player"))
         {
@@ -311,6 +270,20 @@ public class MovimientoNavMesh : MonoBehaviour
             agent.isStopped = false;
             MoverAlSiguientePunto();
         }
+
+        IEnumerator ReanudarTiempoYCerrar()
+        {
+            yield return new WaitForSeconds(3f); // ⏳ Esperar 3 segundos antes de cerrar
+
+            Time.timeScale = 1;
+
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+    Application.Quit();
+#endif
+        }
+
     }
 
 
