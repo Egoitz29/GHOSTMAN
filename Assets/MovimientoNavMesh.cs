@@ -14,7 +14,15 @@ public class MovimientoNavMesh : MonoBehaviour
     public static List<MovimientoNavMesh> enemigos = new List<MovimientoNavMesh>(); // Lista de todos los enemigos
     public GameObject player; // Referencia al jugador para congelarlo cuando termine el juego
     public TMP_Text mensajeCanvas; // 🔹 Referencia al texto en el Canvas
-   
+    public float distanciaHuida = 1f; // Distancia mínima para huir del player
+    private float tiempoUltimaHuida = -999f;
+    public float tiempoEntreHuidas = 0.5f; // espera al menos 2 segundos para volver a huir
+    private int contadorHuidas = 0;
+
+
+
+
+
 
 
     public float velocidadGiro = 500f; // 🟢 Nueva variable para ajustar la velocidad del giro
@@ -60,24 +68,87 @@ public class MovimientoNavMesh : MonoBehaviour
                 return;
             }
 
+            float distancia = Vector3.Distance(transform.position, player.transform.position);
+
+            if(distancia < distanciaHuida && Time.time - tiempoUltimaHuida > tiempoEntreHuidas)
+            {
+                // 🔥 Huir del jugador
+                Transform waypointMasLejano = null;
+                float mayorDistancia = 0f;
+
+                foreach (Transform wp in waypointsDisponibles)
+                {
+                    float d = Vector3.Distance(wp.position, player.transform.position);
+                    if (d > mayorDistancia)
+                    {
+                        mayorDistancia = d;
+                        waypointMasLejano = wp;
+                    }
+                }
+
+                if (waypointMasLejano != null)
+                {
+                    currentWaypoint = waypointMasLejano;
+
+                    Vector3 direccion = (currentWaypoint.position - transform.position).normalized;
+                    int nuevaRotacion = targetRotation;
+
+                    if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
+                        nuevaRotacion = direccion.x > 0 ? 90 : 270;
+                    else
+                        nuevaRotacion = direccion.z > 0 ? 0 : 180;
+
+                    if (nuevaRotacion != targetRotation)
+                    {
+                        targetRotation = nuevaRotacion;
+                        isRotating = true;
+                    }
+                    else
+                    {
+                        agent.SetDestination(currentWaypoint.position);
+                    }
+
+                    tiempoUltimaHuida = Time.time; // <-- para controlar el tiempo entre huidas
+                    tiempoInicioPersecucion = Time.time;                    
+                    persiguiendoPlayer = true;
+                    contadorHuidas++;
+                    Debug.Log("🏃‍♂️ Huyendo del jugador - Veces que ha huido: " + contadorHuidas);
+
+
+                   
+                }
+
+                return;
+            }
+
             if (persiguiendoPlayer)
             {
-                // 🔄 Rotar gradualmente hacia el Player
+                // Si llegó al punto de huida, vuelve a patrullar
+                if (!agent.pathPending && agent.remainingDistance < 0.5f)
+                {
+                    Debug.Log("✅ Enemigo ha llegado al punto lejano. Fin de la huida.");
+                    persiguiendoPlayer = false;
+                    MoverAlSiguientePunto();
+                    return;
+                }
+
                 Vector3 direccion = (player.transform.position - transform.position).normalized;
                 Quaternion rotacionObjetivo = Quaternion.LookRotation(direccion);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, rotacionObjetivo, velocidadGiro * Time.deltaTime);
 
-                // 🔥 Si pasan 10 segundos sin alcanzar al player, volver a la ruta normal
                 if (Time.time - tiempoInicioPersecucion >= 10f)
                 {
                     persiguiendoPlayer = false;
-                    Debug.Log("⏳ Se agotó el tiempo de persecución. Volviendo a waypoints.");
+                    Debug.Log("⏳ Se acabó la persecución, volviendo a waypoints.");
                     MoverAlSiguientePunto();
                 }
                 else
                 {
-                    agent.SetDestination(player.transform.position);
+                    // Mantener la posición, no perseguir al player mientras huye
+                    // Solo sigue y completa el camino al waypoint ya asignado
+
                 }
+
                 return;
             }
 
@@ -92,10 +163,11 @@ public class MovimientoNavMesh : MonoBehaviour
                 MoverAlSiguientePunto();
             }
         }
-    
 
 
-    void RotarHaciaObjetivo()
+
+
+        void RotarHaciaObjetivo()
         {
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(0, targetRotation, 0), velocidadGiro * Time.deltaTime);
 
@@ -115,8 +187,9 @@ public class MovimientoNavMesh : MonoBehaviour
         transform.position = posicionCorrigida;
     }
 
-     public void MoverAlSiguientePunto()
+    public void MoverAlSiguientePunto()
     {
+
         if (waypointsDisponibles.Count == 0)
         {
             StartCoroutine(PartidaFinalizada());
@@ -124,7 +197,7 @@ public class MovimientoNavMesh : MonoBehaviour
         }
 
         currentWaypoint = waypointsDisponibles[Random.Range(0, waypointsDisponibles.Count)];
-        waypointsDisponibles.Remove(currentWaypoint);
+        
 
         Vector3 direccion = (currentWaypoint.position - transform.position).normalized;
         int nuevaRotacion = targetRotation;
@@ -159,6 +232,56 @@ public class MovimientoNavMesh : MonoBehaviour
             agent.SetDestination(currentWaypoint.position);
         }
     }
+    void OnDrawGizmosSelected()
+    {
+        
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, distanciaHuida);
+    }
+    void HuirDelJugador()
+    {
+        Transform waypointMasLejano = null;
+        float mayorDistancia = 0f;
+
+        foreach (Transform wp in waypointsDisponibles)
+        {
+            float d = Vector3.Distance(wp.position, player.transform.position);
+            if (d > mayorDistancia)
+            {
+                mayorDistancia = d;
+                waypointMasLejano = wp;
+            }
+        }
+
+        if (waypointMasLejano != null)
+        {
+            currentWaypoint = waypointMasLejano;
+            Vector3 direccion = (currentWaypoint.position - transform.position).normalized;
+            int nuevaRotacion = targetRotation;
+
+            if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
+                nuevaRotacion = direccion.x > 0 ? 90 : 270;
+            else
+                nuevaRotacion = direccion.z > 0 ? 0 : 180;
+
+            if (nuevaRotacion != targetRotation)
+            {
+                targetRotation = nuevaRotacion;
+                isRotating = true;
+            }
+            else
+            {
+                agent.SetDestination(currentWaypoint.position);
+            }
+
+            tiempoUltimaHuida = Time.time;      // 🔥 importante
+            contadorHuidas++;
+            Debug.Log("🏃‍♂️ Huyendo del jugador (" + contadorHuidas + ")");
+        }
+    }
+
+
 
     IEnumerator PartidaFinalizada()
     {
