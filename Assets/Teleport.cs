@@ -8,7 +8,7 @@ public class Teleport : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player") && !enCooldown) // Si es el Player y no está en cooldown
+        if ((other.CompareTag("Player") || other.CompareTag("enemy")) && !enCooldown)
         {
             StartCoroutine(Teletransportar(other));
         }

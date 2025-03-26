@@ -55,6 +55,8 @@ public class SfereInteractive : MonoBehaviour
         }
     }
 
+
+
     public void Desaparecer()
     {
         if (!estaDesapareciendo)

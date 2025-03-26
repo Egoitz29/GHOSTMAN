@@ -21,29 +21,17 @@ public class MovimientoNavMesh : MonoBehaviour
     private int targetRotation = 0;
     private bool isRotating = false;
     private Transform currentWaypoint;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
 
-        agent.enabled = false;
-        Vector3 posicionDeseada = transform.position;
-        posicionDeseada.y = 1;
-        transform.position = posicionDeseada;
+        // ✅ Deja que el NavMeshAgent controle rotación y altura
+        agent.updateRotation = true;
+        agent.updateUpAxis = true;
+
+        // 🔧 Asegúrate de que está activado
         agent.enabled = true;
-
-        agent.updateRotation = false;
-        agent.updateUpAxis = false;
-
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(transform.position, out hit, 2.0f, NavMesh.AllAreas))
-        {
-            transform.position = hit.position;
-            agent.Warp(hit.position);
-        }
-        else
-        {
-            Debug.LogError("⚠️ No se pudo colocar al enemigo sobre el NavMesh.");
-        }
 
         if (waypoints.Length > 0)
             MoverAlSiguientePunto();
@@ -51,9 +39,25 @@ public class MovimientoNavMesh : MonoBehaviour
             Debug.LogError("❌ No se han asignado waypoints al enemigo.");
     }
 
-
     void Update()
     {
+        // 🛡 Protección total: si se perdió la referencia, intenta recuperarla
+        if (player == null)
+        {
+            GameObject encontrado = GameObject.Find("ghost"); // 👈 busca por nombre
+            if (encontrado != null)
+            {
+                player = encontrado;
+                Debug.Log("♻️ Se reasignó el player al objeto llamado 'ghost'.");
+            }
+            else
+            {
+                // ⚠️ Si no lo encuentra, salimos sin hacer nada
+                Debug.LogWarning("❌ No se encontró el objeto 'ghost' en escena.");
+                return;
+            }
+        }
+
         if (isRotating)
         {
             RotarHaciaObjetivo();
@@ -74,6 +78,8 @@ public class MovimientoNavMesh : MonoBehaviour
 
             foreach (Transform wp in waypoints)
             {
+                if (wp == null) continue;
+
                 float d = Vector3.Distance(wp.position, player.transform.position);
                 if (d > mayorDistancia)
                 {
@@ -100,6 +106,7 @@ public class MovimientoNavMesh : MonoBehaviour
         ActualizarRotacionVisual();
     }
 
+
     void RotarHaciaObjetivo()
     {
         Quaternion rotObjetivo = Quaternion.Euler(0, targetRotation, 0);
@@ -121,24 +128,35 @@ public class MovimientoNavMesh : MonoBehaviour
             return;
         }
 
+        // ✅ Filtrar los waypoints válidos
+        List<Transform> waypointsValidos = new List<Transform>();
+        foreach (Transform wp in waypoints)
+        {
+            if (wp != null) waypointsValidos.Add(wp);
+        }
+
+        if (waypointsValidos.Count == 0)
+        {
+            Debug.LogError("❌ Todos los waypoints han sido destruidos o son nulos.");
+            return;
+        }
+
         Transform nuevoDestino;
         do
         {
-            nuevoDestino = waypoints[Random.Range(0, waypoints.Length)];
-        } while (nuevoDestino == currentWaypoint && waypoints.Length > 1);
+            nuevoDestino = waypointsValidos[Random.Range(0, waypointsValidos.Count)];
+        } while (nuevoDestino == currentWaypoint && waypointsValidos.Count > 1);
 
         currentWaypoint = nuevoDestino;
 
         Vector3 direccion = currentWaypoint.position - transform.position;
 
-        // Elige solo un eje (horizontal o vertical), nunca diagonal
         Vector3 puntoIntermedio = transform.position;
         if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
-            puntoIntermedio += new Vector3(direccion.x, 0, 0); // solo horizontal
+            puntoIntermedio += new Vector3(direccion.x, 0, 0);
         else
-            puntoIntermedio += new Vector3(0, 0, direccion.z); // solo vertical
+            puntoIntermedio += new Vector3(0, 0, direccion.z);
 
-        // Gira claramente antes de avanzar
         if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
             targetRotation = direccion.x > 0 ? 90 : 270;
         else
@@ -146,7 +164,6 @@ public class MovimientoNavMesh : MonoBehaviour
 
         isRotating = true;
 
-        // Usa NavMesh para ir solo a ese punto intermedio, evitando diagonales
         agent.SetDestination(puntoIntermedio);
     }
 
@@ -178,17 +195,16 @@ public class MovimientoNavMesh : MonoBehaviour
 
     IEnumerator ReanudarTiempoYCerrar()
     {
-        yield return new WaitForSecondsRealtime(0.1f); // Espera mínima para actualizar Canvas
-        Time.timeScale = 0;  // Ahora sí pausa visualmente después de mostrar el mensaje
+        yield return new WaitForSecondsRealtime(0.1f);
+        Time.timeScale = 0;
 
-        yield return new WaitForSecondsRealtime(3f);   // Espera 3 segundos reales con juego pausado
+        yield return new WaitForSecondsRealtime(3f);
         Time.timeScale = 1;
 
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
-    Application.Quit();
+        Application.Quit();
 #endif
     }
-
 }
