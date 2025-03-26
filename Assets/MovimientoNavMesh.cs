@@ -13,7 +13,7 @@ public class MovimientoNavMesh : MonoBehaviour
     public static List<MovimientoNavMesh> enemigos = new List<MovimientoNavMesh>();
     public GameObject player;
     public TMP_Text mensajeCanvas;
-    public float distanciaHuida = 1f;
+    public float distanciaHuida = 999f;
     private float tiempoUltimaHuida = -999f;
     public float tiempoEntreHuidas = 0.5f;
     public float velocidadGiro = 500f;
@@ -44,6 +44,12 @@ public class MovimientoNavMesh : MonoBehaviour
         // 🛡 Protección total: si se perdió la referencia, intenta recuperarla
         if (player == null)
         {
+            if (player == null)
+            {
+                Debug.LogWarning("🚫 El objeto player sigue siendo null");
+                return;
+            }
+
             GameObject encontrado = GameObject.Find("ghost"); // 👈 busca por nombre
             if (encontrado != null)
             {
@@ -70,9 +76,13 @@ public class MovimientoNavMesh : MonoBehaviour
         }
 
         float distancia = Vector3.Distance(transform.position, player.transform.position);
+        
+
+
 
         if (distancia < distanciaHuida && Time.time - tiempoUltimaHuida > tiempoEntreHuidas)
         {
+            Debug.Log("⚠️ Modo huida activado");
             Transform waypointMasLejano = null;
             float mayorDistancia = 0f;
 

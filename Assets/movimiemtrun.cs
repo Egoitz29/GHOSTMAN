@@ -70,7 +70,31 @@ public class movimiemtrun : MonoBehaviour
             speed += 5; // 🔥 Aumentar velocidad en +5
             Debug.Log("🚀 ¡Velocidad aumentada! Nueva velocidad: " + speed);
 
-            Destroy(other.gameObject); // 🔥 Eliminar el objeto "poder5"
+            Destroy(other.gameObject);
+        }
+
+        // ✅ Si el Player toca "poder2", baja la velocidad de los enemigos a 5
+        if (other.CompareTag("poder2"))
+        {
+            GameObject[] enemigos = GameObject.FindGameObjectsWithTag("enemy");
+
+            foreach (GameObject enemigo in enemigos)
+            {
+                UnityEngine.AI.NavMeshAgent agente = enemigo.GetComponent<UnityEngine.AI.NavMeshAgent>();
+
+                if (agente != null)
+                {
+                    agente.speed = 5f; // 🐢 Reducir velocidad
+                    Debug.Log("🐢 Velocidad del enemigo reducida a 5.");
+                }
+                else
+                {
+                    Debug.LogWarning("⚠️ El enemigo no tiene NavMeshAgent asignado.");
+                }
+            }
+
+            Destroy(other.gameObject); // 🐢 Eliminar el objeto "poder2"
         }
     }
+
 }
