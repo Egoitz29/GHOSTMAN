@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class MovimientoNavMesh : MonoBehaviour
 {
@@ -13,10 +14,19 @@ public class MovimientoNavMesh : MonoBehaviour
     public static List<MovimientoNavMesh> enemigos = new List<MovimientoNavMesh>();
     public GameObject player;
     public TMP_Text mensajeCanvas;
-    public float distanciaHuida = 999f;
+    public float distanciaHuida = 0.1f;
     private float tiempoUltimaHuida = -999f;
-    public float tiempoEntreHuidas = 0.5f;
+    public float tiempoEntreHuidas = 2f;
     public float velocidadGiro = 500f;
+    private static int reintentos = 0;
+    private int maxIntentos = 2; // reiniciar 2 veces → 3 partidas en total
+    [SerializeField] private TextMeshProUGUI vidasCanvas;
+
+    [SerializeField] private float velocidadExtraHuida = 5f;
+    [SerializeField] private float duracionVelocidadExtra = 3f;
+
+    private float velocidadOriginal;
+    private Coroutine restaurarVelocidadCoroutine;
 
     private int targetRotation = 0;
     private bool isRotating = false;
@@ -24,6 +34,8 @@ public class MovimientoNavMesh : MonoBehaviour
 
     void Start()
     {
+
+
         agent = GetComponent<NavMeshAgent>();
 
         // ✅ Deja que el NavMeshAgent controle rotación y altura
@@ -37,10 +49,46 @@ public class MovimientoNavMesh : MonoBehaviour
             MoverAlSiguientePunto();
         else
             Debug.LogError("❌ No se han asignado waypoints al enemigo.");
+      
+        
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+        velocidadOriginal = agent.speed;
+
+        MostrarVidasRestantes();
+
+
+    }
+
+    [SerializeField] private Transform[] puntosSpawn;
+
+    private void Awake()
+    {
+        if (puntosSpawn.Length == 0)
+        {
+            Debug.LogError("⚠️ No hay puntos de spawn asignados.");
+            return;
+        }
+
+        int index = Random.Range(0, puntosSpawn.Length);
+        Transform punto = puntosSpawn[index];
+
+        // Asegúrate de que el punto esté sobre el NavMesh
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(punto.position, out hit, 2f, NavMesh.AllAreas))
+        {
+            transform.position = hit.position;
+            transform.rotation = punto.rotation;
+            Debug.Log("📍 Spawn aleatorio aplicado en Awake: " + hit.position);
+        }
+        else
+        {
+            Debug.LogError("❌ El punto de spawn no está sobre el NavMesh: " + punto.name);
+        }
     }
 
     void Update()
     {
+
         // 🛡 Protección total: si se perdió la referencia, intenta recuperarla
         if (player == null)
         {
@@ -63,6 +111,10 @@ public class MovimientoNavMesh : MonoBehaviour
                 return;
             }
         }
+       
+
+  
+
 
         if (isRotating)
         {
@@ -76,45 +128,70 @@ public class MovimientoNavMesh : MonoBehaviour
         }
 
         float distancia = Vector3.Distance(transform.position, player.transform.position);
-        
+
 
 
 
         if (distancia < distanciaHuida && Time.time - tiempoUltimaHuida > tiempoEntreHuidas)
         {
             Debug.Log("⚠️ Modo huida activado");
-            Transform waypointMasLejano = null;
-            float mayorDistancia = 0f;
+            Transform waypointSeguro = null;
+            float mejorPuntaje = -Mathf.Infinity;
+            float distanciaSeguridad = 5f;
+
+            Vector3 direccionHuida = (transform.position - player.transform.position).normalized;
 
             foreach (Transform wp in waypoints)
             {
                 if (wp == null) continue;
 
-                float d = Vector3.Distance(wp.position, player.transform.position);
-                if (d > mayorDistancia)
+                float distanciaAlJugador = Vector3.Distance(wp.position, player.transform.position);
+                if (distanciaAlJugador < distanciaSeguridad) continue; // sigue si el punto está muy cerca del jugador
+
+                Vector3 direccionAlWP = (wp.position - transform.position).normalized;
+                float alineacion = Vector3.Dot(direccionHuida, direccionAlWP); // +1 si está justo en dirección opuesta al jugador
+
+                float distanciaAlEnemigo = Vector3.Distance(wp.position, transform.position);
+                float puntaje = alineacion * distanciaAlEnemigo; // huimos lejos y en buena dirección
+
+                if (puntaje > mejorPuntaje)
                 {
-                    mayorDistancia = d;
-                    waypointMasLejano = wp;
+                    mejorPuntaje = puntaje;
+                    waypointSeguro = wp;
                 }
             }
 
-            if (waypointMasLejano != null)
+
+            if (waypointSeguro != null)
             {
-                currentWaypoint = waypointMasLejano;
-                Vector3 direccion = (currentWaypoint.position - transform.position).normalized;
+                currentWaypoint = waypointSeguro;
+                Debug.Log("➡️ Huyendo hacia: " + waypointSeguro.name);
 
-                if (Mathf.Abs(direccion.x) > Mathf.Abs(direccion.z))
-                    targetRotation = direccion.x > 0 ? 90 : 270;
-                else
-                    targetRotation = direccion.z > 0 ? 0 : 180;
-
-                isRotating = true;
+                transform.LookAt(currentWaypoint);
+                agent.SetDestination(currentWaypoint.position);
                 tiempoUltimaHuida = Time.time;
+
+                agent.speed = velocidadOriginal + velocidadExtraHuida;
+
+                if (restaurarVelocidadCoroutine != null)
+                    StopCoroutine(restaurarVelocidadCoroutine);
+
+                restaurarVelocidadCoroutine = StartCoroutine(RestaurarVelocidadDespuesDe(duracionVelocidadExtra));
             }
         }
 
+
         ActualizarRotacionVisual();
     }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawWireSphere(transform.position, 0.1f); // control visual
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, distanciaHuida);
+    }
+
 
 
     void RotarHaciaObjetivo()
@@ -187,24 +264,72 @@ public class MovimientoNavMesh : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, rotacionObjetivo, velocidadGiro * Time.deltaTime);
         }
     }
-
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player") && gameObject.CompareTag("enemy"))
         {
-            if (mensajeCanvas != null)
-            {
-                mensajeCanvas.text = "¡Enhorabuena crack, los fantasmas han ganado!";
-                mensajeCanvas.gameObject.SetActive(true);
-                mensajeCanvas.ForceMeshUpdate();
-            }
+            // ⏸️ Congelar el tiempo
+            Time.timeScale = 0f;
 
-            StartCoroutine(ReanudarTiempoYCerrar());
+            if (reintentos < maxIntentos)
+            {
+                reintentos++;
+                MostrarVidasRestantes();
+                StartCoroutine(ReiniciarPartidaConDelay());
+            }
+            else
+            {
+                if (mensajeCanvas != null)
+                {
+                    mensajeCanvas.text = "¡Enhorabuena crack, los fantasmas han ganado!";
+                    mensajeCanvas.gameObject.SetActive(true);
+                    mensajeCanvas.ForceMeshUpdate();
+                }
+
+                StartCoroutine(ReanudarTiempoYCerrar());
+                reintentos = 0;
+            }
         }
     }
 
-    IEnumerator ReanudarTiempoYCerrar()
+    private void MostrarVidasRestantes()
     {
+        int vidasRestantes = (maxIntentos - reintentos + 1);
+
+
+        if (vidasCanvas != null)
+        {
+            if (vidasRestantes > 1)
+                vidasCanvas.text = "VIDAS PAC-MAN: " + vidasRestantes;
+            else if (vidasRestantes == 1)
+                vidasCanvas.text = "Te queda 1 partida";
+            else
+                vidasCanvas.text = ""; // nada, ya ganó o terminó
+        }
+    }
+
+
+    private IEnumerator RestaurarVelocidadDespuesDe(float segundos)
+    {
+        yield return new WaitForSeconds(segundos);
+        agent.speed = velocidadOriginal;
+    }
+    private IEnumerator ReiniciarPartidaConDelay()
+    {
+        yield return new WaitForSecondsRealtime(2f); // 👈 se usa "Realtime" porque Time.timeScale está en 0
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    IEnumerator ReanudarTiempoYCerrar()
+
+    {
+        yield return new WaitForSecondsRealtime(3f);
+        Time.timeScale = 1f;
+        // Aquí haces lo que quieras: ir al menú, cerrar, etc.
+    
+
+    
         yield return new WaitForSecondsRealtime(0.1f);
         Time.timeScale = 0;
 
