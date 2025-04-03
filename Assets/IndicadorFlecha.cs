@@ -6,8 +6,7 @@ public class IndicadorFlecha : MonoBehaviour
 
     void Start()
     {
-        // Establece la posición local relativa al cubo (player)
-        transform.localPosition = new Vector3(-0.029f, -0.462f, 2.71f);
+       
     }
 
     void Update()
