@@ -8,27 +8,56 @@ public class Teleport : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        Debug.Log("Entró en el trigger con: " + other.name);
+
         if ((other.CompareTag("Player") || other.CompareTag("enemy")) && !enCooldown)
         {
+            Debug.Log("Comienza teletransporte...");
             StartCoroutine(Teletransportar(other));
         }
     }
 
+
     private IEnumerator Teletransportar(Collider objeto)
     {
-        enCooldown = true; // Activa cooldown para evitar múltiples activaciones
-        otroTeletransportador.enCooldown = true; // También activa cooldown en el otro teletransportador
+        Debug.Log("Teletransportando a: " + objeto.name);
 
-        // Mantiene la altura del objeto
+        enCooldown = true;
+        otroTeletransportador.enCooldown = true;
+
+        // Posición de destino
         Vector3 nuevaPosicion = otroTeletransportador.transform.position;
         nuevaPosicion.y = objeto.transform.position.y;
 
-        yield return new WaitForSeconds(0.1f); // Pequeña espera antes de moverlo
-        objeto.transform.position = nuevaPosicion;
+        yield return new WaitForSeconds(0.1f);
 
-        yield return new WaitForSeconds(0.5f); // Esperar para evitar que el otro teletransportador se active de inmediato
+        // Revisa si tiene NavMeshAgent
+        var nav = objeto.GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (nav != null)
+        {
+            Debug.Log("Usando NavMeshAgent.Warp");
+            nav.Warp(nuevaPosicion);
+        }
+        else
+        {
+            // Desactivar CharacterController si existe
+            var controller = objeto.GetComponent<CharacterController>();
+            if (controller != null)
+            {
+                controller.enabled = false;
+                objeto.transform.position = nuevaPosicion;
+                controller.enabled = true;
+            }
+            else
+            {
+                objeto.transform.position = nuevaPosicion;
+            }
+        }
 
-        enCooldown = false; // Se permite volver a teletransportar
-        otroTeletransportador.enCooldown = false; // También se reactiva el otro teletransportador
+        yield return new WaitForSeconds(0.5f);
+
+        enCooldown = false;
+        otroTeletransportador.enCooldown = false;
     }
+
 }
