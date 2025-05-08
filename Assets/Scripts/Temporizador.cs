@@ -7,6 +7,8 @@ public class Temporizador : MonoBehaviour
     public float tiempoPartida = 60f;
     public TMP_Text tiempoRestanteTexto;
     public float tiempoEsperaAntesDeCerrar = 3f;
+    [SerializeField] private GameObject canvasFinal;  // El mismo PanelFinal que usas en MovimientoNavMesh
+
 
     private bool tiempoAgotado = false;
 
@@ -73,12 +75,16 @@ public class Temporizador : MonoBehaviour
 
         Time.timeScale = 0;
         yield return new WaitForSecondsRealtime(tiempoEsperaAntesDeCerrar);
-        Time.timeScale = 1;
 
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+        // ❌ Quitamos el cierre del juego y mostramos el panel
+        if (canvasFinal != null)
+        {
+            canvasFinal.SetActive(true);
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ No se ha asignado el Panel Final en el inspector del Temporizador.");
+        }
     }
 }
+

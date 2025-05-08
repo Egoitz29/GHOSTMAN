@@ -5,6 +5,7 @@ using UnityEngine.AI;
 using TMPro;
 using UnityEngine.SceneManagement;
 
+
 public class MovimientoNavMesh : MonoBehaviour
 {
     public Transform[] waypoints;
@@ -18,10 +19,13 @@ public class MovimientoNavMesh : MonoBehaviour
     private float tiempoUltimaHuida = -999f;
     public float tiempoEntreHuidas = 2f;
     public float velocidadGiro = 500f;
+
     private static int reintentos = 0;
     private int maxIntentos = 2; // reiniciar 2 veces → 3 partidas en total
-    [SerializeField] private TextMeshProUGUI vidasCanvas;
+    private static bool escenaCambiada = false; // Para evitar que múltiples enemigos cambien de escena o cierren el juego
 
+    [SerializeField] private TextMeshProUGUI vidasCanvas;
+    [SerializeField] private GameObject canvasFinal;  // 👈 referencia al panel final dentro de tu Canvas
     [SerializeField] private float velocidadExtraHuida = 5f;
     [SerializeField] private float duracionVelocidadExtra = 3f;
 
@@ -264,6 +268,7 @@ public class MovimientoNavMesh : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, rotacionObjetivo, velocidadGiro * Time.deltaTime);
         }
     }
+   
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player") && gameObject.CompareTag("enemy"))
@@ -286,11 +291,33 @@ public class MovimientoNavMesh : MonoBehaviour
                     mensajeCanvas.ForceMeshUpdate();
                 }
 
-                StartCoroutine(ReanudarTiempoYCerrar());
                 reintentos = 0;
+
+                // ✅ Mostrar el panel final en lugar de cambiar de escena automáticamente
+                if (canvasFinal != null)
+                {
+                    canvasFinal.SetActive(true);
+                }
+                else
+                {
+                    Debug.LogWarning("⚠️ No se ha asignado el Panel Final en el inspector.");
+                }
             }
         }
     }
+
+
+    IEnumerator CargarNuevaEscena()
+    {
+        yield return new WaitForSecondsRealtime(2f);
+        Time.timeScale = 1f;
+        if (!escenaCambiada)
+        {
+            escenaCambiada = true;
+            SceneManager.LoadScene("Menu");
+        }
+    }
+
 
     private void MostrarVidasRestantes()
     {
@@ -326,20 +353,5 @@ public class MovimientoNavMesh : MonoBehaviour
     {
         yield return new WaitForSecondsRealtime(3f);
         Time.timeScale = 1f;
-        // Aquí haces lo que quieras: ir al menú, cerrar, etc.
-    
-
-    
-        yield return new WaitForSecondsRealtime(0.1f);
-        Time.timeScale = 0;
-
-        yield return new WaitForSecondsRealtime(3f);
-        Time.timeScale = 1;
-
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
     }
 }
