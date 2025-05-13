@@ -67,7 +67,7 @@ public class movimiemtrun : MonoBehaviour
         // ✅ Si el Player toca "poder5", aumenta su velocidad en +5
         if (other.CompareTag("poder5"))
         {
-            speed += 5; // 🔥 Aumentar velocidad en +5
+            speed += 2; // 🔥 Aumentar velocidad en +5
             Debug.Log("🚀 ¡Velocidad aumentada! Nueva velocidad: " + speed);
 
             Destroy(other.gameObject);
