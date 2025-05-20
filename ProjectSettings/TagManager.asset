@@ -16,6 +16,7 @@ TagManager:
   - poder5
   - poder6
   - matar
+  - suelos
   layers:
   - Default
   - TransparentFX
@@ -24,7 +25,7 @@ TagManager:
   - Water
   - UI
   - FlechaIgnorar
-  - 
+  - Estructuras
   - 
   - 
   - 

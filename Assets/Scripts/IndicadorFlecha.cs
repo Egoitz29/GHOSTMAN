@@ -1,37 +1,45 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class IndicadorFlecha : MonoBehaviour
 {
-    public Transform enemy;  // Referencia al enemigo
-
-    void Start()
-    {
-       
-    }
+    public Transform enemy;           // Enemigo al que apuntar
+    public LayerMask obstaculosMask;  // Capa de obstÃ¡culos (estructuras, paredes)
+    public GameObject flechaVisual;   // El objeto visual de la flecha (puede ser hijo)
 
     void Update()
     {
         if (enemy != null)
         {
-            // Obtener la dirección hacia el enemigo en el plano XZ
+            // DirecciÃ³n en plano horizontal
             Vector3 direction = enemy.position - transform.position;
-            direction.y = 0; // Mantener la rotación solo en el plano horizontal
+            direction.y = 0;
 
             if (direction.magnitude > 0.1f)
             {
-                // Mantener la rotación X en 90° y hacer que la flecha apunte al enemigo
                 transform.rotation = Quaternion.Euler(90, Quaternion.LookRotation(direction).eulerAngles.y, 0);
+            }
+
+            // RAYCAST para detectar obstÃ¡culos
+            Vector3 origen = transform.position;
+            Vector3 destino = enemy.position;
+            Vector3 direccionRay = destino - origen;
+
+            RaycastHit hit;
+            if (Physics.Raycast(origen, direccionRay.normalized, out hit, direccionRay.magnitude, obstaculosMask))
+            {
+                // Algo estÃ¡ bloqueando la vista â†’ ocultar
+                if (flechaVisual != null)
+                    flechaVisual.SetActive(false);
+            }
+            else
+            {
+                // Vista limpia â†’ mostrar
+                if (flechaVisual != null)
+                    flechaVisual.SetActive(true);
             }
         }
     }
 }
-
-
-
-
-
-
-
 
 
 

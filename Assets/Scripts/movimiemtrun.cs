@@ -2,41 +2,54 @@
 
 public class movimiemtrun : MonoBehaviour
 {
-    public float speed = 5f; // Velocidad de movimiento
-    public float turnSpeed = 200f; // Velocidad de giro
-    private int targetRotation = 0; // Ángulo objetivo
-    public Temporizador temporizador; // Referencia al temporizador
+    public float speed = 5f;
+    public float turnSpeed = 200f;
+    private int targetRotation = 0;
+    public Temporizador temporizador;
+
+    public float distanciaRaycast = 2f;
+    public float offsetAltura = 0.5f; // Ajusta según el tamaño de tu jugador
+    public LayerMask capaSuelo;
 
     void Start()
     {
-        targetRotation = Mathf.RoundToInt(transform.eulerAngles.y); // Asegurar que inicie con un ángulo correcto
+        targetRotation = Mathf.RoundToInt(transform.eulerAngles.y);
     }
 
     void Update()
     {
-        // 🔴 No permite moverse hasta que la rotación esté en un ángulo exacto
+        // PEGADO AL SUELO SIEMPRE
+        RaycastHit hit;
+        if (Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, out hit, distanciaRaycast, capaSuelo))
+        {
+            if (hit.collider.CompareTag("suelos"))
+            {
+                Vector3 nuevaPos = transform.position;
+                nuevaPos.y = hit.point.y + offsetAltura;
+                transform.position = nuevaPos;
+            }
+        }
+
+        // Movimiento solo si la rotación es exacta
         if (Quaternion.Angle(transform.rotation, Quaternion.Euler(0, targetRotation, 0)) < 1f)
         {
-            // Movimiento solo si la rotación es exacta
             float moveZ = Input.GetAxis("Vertical");
             Vector3 forwardDirection = Quaternion.Euler(0, targetRotation, 0) * Vector3.forward;
             transform.position += forwardDirection * moveZ * speed * Time.deltaTime;
         }
 
-        // Rotar a la izquierda
+        // Rotación
         if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
         {
             targetRotation -= 90;
-            if (targetRotation < 0) targetRotation += 360; // Evita valores negativos
+            if (targetRotation < 0) targetRotation += 360;
         }
-        // Rotar a la derecha
         else if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
         {
             targetRotation += 90;
-            if (targetRotation >= 360) targetRotation -= 360; // Evita valores mayores a 360
+            if (targetRotation >= 360) targetRotation -= 360;
         }
 
-        // Aplicar rotación suavemente con RotateTowards
         transform.rotation = Quaternion.RotateTowards(
             transform.rotation,
             Quaternion.Euler(0, targetRotation, 0),
@@ -46,7 +59,6 @@ public class movimiemtrun : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // ✅ Si el Player toca "poder3", suma 30 segundos
         if (other.CompareTag("poder3"))
         {
             Debug.Log("🟢 ¡Player tocó poder3!");
@@ -64,16 +76,13 @@ public class movimiemtrun : MonoBehaviour
             Destroy(other.gameObject);
         }
 
-        // ✅ Si el Player toca "poder5", aumenta su velocidad en +5
         if (other.CompareTag("poder5"))
         {
-            speed += 2; // 🔥 Aumentar velocidad en +5
+            speed += 2;
             Debug.Log("🚀 ¡Velocidad aumentada! Nueva velocidad: " + speed);
-
             Destroy(other.gameObject);
         }
 
-        // ✅ Si el Player toca "poder2", baja la velocidad de los enemigos a 5
         if (other.CompareTag("poder2"))
         {
             GameObject[] enemigos = GameObject.FindGameObjectsWithTag("enemy");
@@ -84,7 +93,7 @@ public class movimiemtrun : MonoBehaviour
 
                 if (agente != null)
                 {
-                    agente.speed = 5f; // 🐢 Reducir velocidad
+                    agente.speed = 5f;
                     Debug.Log("🐢 Velocidad del enemigo reducida a 5.");
                 }
                 else
@@ -93,8 +102,7 @@ public class movimiemtrun : MonoBehaviour
                 }
             }
 
-            Destroy(other.gameObject); // 🐢 Eliminar el objeto "poder2"
+            Destroy(other.gameObject);
         }
     }
-
 }
