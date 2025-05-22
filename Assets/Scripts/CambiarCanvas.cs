@@ -3,11 +3,16 @@ using UnityEngine;
 public class CambiarCanvas : MonoBehaviour
 {
     public Canvas canvasAMostrar;
-    public Canvas canvasAOcultar;
+    public Canvas canvasAOcultar1;
+    public Canvas canvasAOcultar2;
+    public Canvas canvasAOcultar3;
 
     public void Cambiar()
     {
         if (canvasAMostrar != null) canvasAMostrar.enabled = true;
-        if (canvasAOcultar != null) canvasAOcultar.enabled = false;
+
+        if (canvasAOcultar1 != null) canvasAOcultar1.enabled = false;
+        if (canvasAOcultar2 != null) canvasAOcultar2.enabled = false;
+        if (canvasAOcultar3 != null) canvasAOcultar3.enabled = false;
     }
 }

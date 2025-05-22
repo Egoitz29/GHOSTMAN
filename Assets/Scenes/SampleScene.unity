@@ -40683,6 +40683,59 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2100331381}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &2113606485
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2113606487}
+  - component: {fileID: 2113606486}
+  m_Layer: 0
+  m_Name: AplicarMaterialGuardado
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2113606486
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2113606485}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b457d9ba1e04574295441fc221563ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rendererDelFantasma: {fileID: 13700000, guid: cd46c4c845d21ed4690627267f2edc5d,
+    type: 3}
+  materiales:
+  - {fileID: 2100000, guid: 07a319e011269d640bd54c8681787d87, type: 2}
+  - {fileID: 2100000, guid: 26bcbe1ab7bf213448c16169f6208712, type: 2}
+  - {fileID: 2100000, guid: 70ba22ec1dded714d89bcdab0542907c, type: 2}
+  - {fileID: 2100000, guid: 67282bf1543d7094f85385b73ba1cb3f, type: 2}
+  - {fileID: 2100000, guid: 6bed19597475a274a834a0c10030ec22, type: 2}
+  - {fileID: 2100000, guid: c31e5fac1beb02f4e8774fb2e51e87a3, type: 2}
+--- !u!4 &2113606487
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2113606485}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 5.590197, y: 13.028803, z: -23.607622}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2120912342
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -46096,3 +46149,4 @@ SceneRoots:
   - {fileID: 437537275}
   - {fileID: 1718772571}
   - {fileID: 58832064}
+  - {fileID: 2113606487}
